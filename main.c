@@ -2,7 +2,11 @@
 #include <stdlib.h>
 #include <assert.h>
 #include "color.h"
-
+/*
+Добавить Head Tail
+Кольцевой список, служебная и информационная часть
+Графический дамп списка
+*/
 #define FREE_ELEM -1
 
 typedef int list_elem_t;
@@ -78,6 +82,7 @@ int main ()
         List_Destroy (&list1);
         fclose (write_dump);
     }
+    
 
 
     Add (&list1, 35);
