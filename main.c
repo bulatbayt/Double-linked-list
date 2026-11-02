@@ -66,18 +66,14 @@ int main ()
     Add (&list1, 40);
     Add (&list1, 50);
 
-    List_Dump (&list1, write_dump);
-
-
     Delete (&list1, 30);
 
-    List_Dump (&list1, write_dump);
-
-
     Add (&list1, 35);
+    Add (&list1, 70);
+    Add (&list1, 65);
+    Add (&list1, 45);
 
     List_Dump (&list1, write_dump);
-
     Dump_Graph (&list1, graph_dump);
 
     List_Destroy (&list1);
@@ -321,7 +317,7 @@ int Delete (struct list_info* list, list_elem_t value)
 void Dump_Graph        (struct list_info* list, FILE* graph_write)
 {
     fprintf (graph_write, "digraph G {\n");
-    fprintf (graph_write, "size=\"6.7,15\";\n");
+    //fprintf (graph_write, "size=\"6.7,15\";\n");
 
     fprintf (graph_write, "rankdir=LR;\n");
     fprintf (graph_write, "node [shape=record, fontsize=14];\n");
@@ -331,7 +327,9 @@ void Dump_Graph        (struct list_info* list, FILE* graph_write)
     {
         if (list->data[i] == -1)
         {
-            fprintf (graph_write, "subgraph cluster0 {\nnode [style=filled,color=\"#15762d\"];\nstyle=filled;\ncolor=lightgrey;");
+            
+            fprintf (graph_write, "subgraph cluster0 {\nnode [style=filled,color=\"#15762d\"];\nstyle=filled;\ncolor=lightgrey;\n");
+            fprintf (graph_write, "rankdir=LR;\n");
             fprintf (graph_write, "    idx_%zu [label=\" Elem №%i | \nData = %d  | { <next> Next = %d | <prev> Prev = %d } \"];\n", 
                  i, i, list->data[i], list->next[i], list->prev[i]);
             fprintf (graph_write, "}");
@@ -340,9 +338,10 @@ void Dump_Graph        (struct list_info* list, FILE* graph_write)
         else
         {   
             fprintf (graph_write, "subgraph cluster1 {\nnode [style=filled,color=\"#541576\"];\nstyle=filled;\ncolor=\"#21f1de\";");
+            fprintf (graph_write, "rankdir=LR;\n");
             //fprintf (graph_write, "    idx_%zu [label=\" Elem №%i | \nData = %d  | { <next> Next = %d | <prev> Prev = %d } \"];\n"), 
             
-            fprintf (graph_write, "    idx_%zu [label=\" Elem №%i | \nData = %d  | { <next> Next = %d | <prev> Prev = %d } \"];\n", 
+            fprintf (graph_write, "    idx_%zu [label=\" Elem №%i | \nData = %d  | { <next> Next = %d | <prev> Prev = %d } \",fontcolor=\"#c2d4e4\"];\n", 
                     i, i, list->data[i], list->next[i], list->prev[i]);
             fprintf (graph_write, "}");
         }
