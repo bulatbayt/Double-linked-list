@@ -9,6 +9,7 @@
 Графический дамп списка
 */
 #define FREE_ELEM -1
+#define POISON_ELEM 666
 
 typedef int list_elem_t;
 
@@ -19,7 +20,6 @@ struct list_info
     int*         prev;
     ssize_t      size_list;
     int          err;
-    
     int          head;
     int          tail;
     int*         free;
@@ -47,8 +47,8 @@ int  Delete          (struct list_info* list, list_elem_t value);
 
 void Print_Error     (struct list_info* list);
 int  Find_Free       (struct list_info* list);
-void Dump_Graph        (struct list_info* list, FILE* graph_write);
-
+void Dump_Graph      (struct list_info* list, FILE* graph_write);
+void Dump_To_Html    (struct list_info* list, const char* html_filename, const char* png_filename);
 
 
 
@@ -73,8 +73,8 @@ int main ()
     Add (&list1, 65);
     Add (&list1, 45);
 
+    Dump_To_Html (&list1, "log.html", "list_dump.png");
     List_Dump (&list1, write_dump);
-    Dump_Graph (&list1, graph_dump);
 
     List_Destroy (&list1);
     fclose (write_dump);
@@ -96,7 +96,7 @@ int  List_Init    (struct list_info* list, ssize_t size_list)
     if (list->data == NULL || list->next == NULL || list->prev == NULL)
         return -1;
 
-    list->data[0] = 666; 
+    list->data[0] = POISON_ELEM; 
     list->next[0] = 0; 
     list->prev[0] = 0;
     
@@ -236,7 +236,7 @@ int  Find_Free       (struct list_info* list)
 
 
 
-int Add    (struct list_info* list, list_elem_t value)
+int  Add          (struct list_info* list, list_elem_t value)
 {
     int point = Find_Free (list);
 
@@ -250,7 +250,7 @@ int Add    (struct list_info* list, list_elem_t value)
     int current = list->head; 
     int prev_current = 0; 
 
-    while (current != 0 && list->data[current] < value)
+    while (current != 0)
     {
         prev_current = current;
         current = list->next[current];
@@ -275,7 +275,7 @@ int Add    (struct list_info* list, list_elem_t value)
     return 0;
 }
 
-int Delete (struct list_info* list, list_elem_t value)
+int  Delete       (struct list_info* list, list_elem_t value)
 {
     int number_elem = list->head; 
     
@@ -314,49 +314,175 @@ int Delete (struct list_info* list, list_elem_t value)
     return 0;
 }
 
-void Dump_Graph        (struct list_info* list, FILE* graph_write)
+void Dump_Graph   (struct list_info* list, FILE* graph_write)
 {
     fprintf (graph_write, "digraph G {\n");
-    //fprintf (graph_write, "size=\"6.7,15\";\n");
+    fprintf (graph_write, "  rankdir = LR;\n");
+    fprintf (graph_write, "  node [shape = Mrecord; style = filled;];\n");
+    fprintf (graph_write, "  edge [color = darkblue;];\n\n");
 
-    fprintf (graph_write, "rankdir=LR;\n");
-    fprintf (graph_write, "node [shape=record, fontsize=14];\n");
     
-
     for (size_t i = 0; i < list->size_list; i++)
     {
-        if (list->data[i] == -1)
-        {
-            
-            fprintf (graph_write, "subgraph cluster0 {\nnode [style=filled,color=\"#15762d\"];\nstyle=filled;\ncolor=lightgrey;\n");
-            fprintf (graph_write, "rankdir=LR;\n");
-            fprintf (graph_write, "    idx_%zu [label=\" Elem №%i | \nData = %d  | { <next> Next = %d | <prev> Prev = %d } \"];\n", 
-                 i, i, list->data[i], list->next[i], list->prev[i]);
-            fprintf (graph_write, "}");
-        }
         
-        else
-        {   
-            fprintf (graph_write, "subgraph cluster1 {\nnode [style=filled,color=\"#541576\"];\nstyle=filled;\ncolor=\"#21f1de\";");
-            fprintf (graph_write, "rankdir=LR;\n");
-            //fprintf (graph_write, "    idx_%zu [label=\" Elem №%i | \nData = %d  | { <next> Next = %d | <prev> Prev = %d } \"];\n"), 
-            
-            fprintf (graph_write, "    idx_%zu [label=\" Elem №%i | \nData = %d  | { <next> Next = %d | <prev> Prev = %d } \",fontcolor=\"#c2d4e4\"];\n", 
-                    i, i, list->data[i], list->next[i], list->prev[i]);
-            fprintf (graph_write, "}");
-        }
-    }
+        const char* fillcolor = "#C0FFC0"; 
+        const char* color     = "#008000"; 
 
-    fprintf (graph_write, "idx_%zu -> idx_%d[color=\"#15762d\"];\n", 0, list->next[0]);// Кольцевой список!!!
-    for (size_t i =1; i < list->size_list; i++)
-    {
-        if (list->next[i] != -1)
+        if (i == 0) 
         {
-            fprintf (graph_write, "idx_%zu -> idx_%d[color=\"#15762d\"];\n", i, list->next[i]);
+            fillcolor = "#FFC0CB"; 
+            color     = "#800080"; 
+        }
+        else if (list->data[i] != -1) 
+        {
+            fillcolor = "#C0E0FF"; 
+            color     = "#0000FF";
         }
 
+
+        fprintf (graph_write, "  V%zu [label = \"index: %zu | value: %d | {prev: %d | next: %d}\"; fillcolor = \"%s\"; color = \"%s\";];\n",
+                 i, i, list->data[i], list->prev[i], list->next[i], fillcolor, color);
     }
+    fprintf (graph_write, "\n");
 
     
+    for (size_t i = 0; i < list->size_list - 1; i++)
+    {
+        fprintf (graph_write, "  V%zu -> V%zu [style=invis];\n", i, i + 1);
+    }
+    fprintf (graph_write, "\n");
+    
+    
+    if (list->head != 0) {
+        fprintf (graph_write, "  V0 -> V%d [dir=both; constraint=false];\n", list->head);
+    }
+
+    for (size_t i = 1; i < list->size_list; i++)
+    {
+        
+        if (list->data[i] != -1 && list->next[i] != -1)
+        {
+            if (i != list->next[list->prev[i]])
+            {
+                fprintf (graph_write, "  V%zu -> V%d [dir=both; constraint=false; color =\"#bc003e\"];\n", i, list->next[i]);
+            }
+            
+            fprintf (graph_write, "  V%zu -> V%d [dir=both; constraint=false];\n", i, list->next[i]);
+            
+        }
+    }
+
+    fprintf (graph_write, "\n  HEAD [label = \"HEAD\"];\n");
+    if (list->head != 0)
+        fprintf (graph_write, "  { rank = same; HEAD; V%d; }\n", list->head);
+
+    fprintf (graph_write, "  TAIL [label = \"TAIL\"];\n");
+    if (list->tail != 0)
+        fprintf (graph_write, "  { rank = same; TAIL; V%d; }\n", list->tail);
+
     fprintf (graph_write, "}\n");
+}
+
+void Dump_To_Html (struct list_info* list, const char* html_filename, const char* png_filename)
+{
+    FILE* dot_file = fopen ("list_dump.dot", "w");
+    if (dot_file != NULL)
+    {
+        Dump_Graph (list, dot_file);
+        fclose (dot_file);
+    }
+
+
+    char command[256];
+    snprintf (command, sizeof (command), "dot -Tpng list_dump.dot -o %s", png_filename);
+    system (command);
+
+
+    FILE* html = fopen (html_filename, "w");
+    if (html == NULL) return;
+
+    
+    fprintf (html, "<pre>\n");
+    fprintf (html, "<h3> DUMP <font color=\"#be1fde\">Double linked list</font> </h3>\n");
+    fprintf (html, "List { %p }\n\n", (void*)list);
+    
+
+    fprintf (html, "       ");
+    for (int i = 0; i < list->size_list; i++) 
+    {
+        fprintf (html, "<font color=\"#bc8500\">%03d        </font>", i);
+    }
+    fprintf (html, "\n");
+    fprintf (html, "\n");
+    
+
+
+
+    fprintf (html, "<font color=\"#1f0e91\">Data:  </font>");
+    for (int i = 0; i < list->size_list; i++) 
+    {
+                if (list->data[i] == POISON_ELEM)
+        {
+            fprintf (html, "<font color=\"#bc003e\">%03d        </font>", list->data[i]);    
+        }
+        else if (list->data[i] == FREE_ELEM)
+        {
+            fprintf (html, "<font color=\"#00bc7e\">%03d        </font>", list->data[i]);
+        }
+        else
+        {
+            fprintf (html, "%03d        ", list->data[i]);
+        }
+    }
+    fprintf (html, "\n");
+    fprintf (html, "\n");
+
+
+
+
+    fprintf (html,"<font color=\"#1f0e91\">Next:  </font>");
+    for (int i = 0; i < list->size_list; i++) 
+    {
+        if (list->next[i] == FREE_ELEM)
+        {
+            fprintf (html, "<font color=\"#00bc7e\">%03d        </font>", list->next[i]);
+        }
+        else
+        {
+            fprintf (html, "%03d        ", list->next[i]);
+        }
+    }
+    fprintf (html, "\n");
+    fprintf (html, "\n");
+    
+    
+
+
+
+    fprintf (html,"<font color=\"#1f0e91\">Prev:  </font>");
+    for (int i = 0; i < list->size_list; i++) 
+    {
+        if (list->prev[i] == FREE_ELEM)
+        {
+            fprintf (html, "<font color=\"#00bc7e\">%03d        </font>", list->prev[i]);
+        }
+        else
+        {
+            fprintf (html, "%03d        ", list->prev[i]);
+        }
+    }
+    fprintf (html, "\n\n");
+
+    
+
+
+
+    fprintf (html, "Image:\n");
+    fprintf (html, "<img src=\"%s\" width=\"1600px\">\n", png_filename);
+    
+    fprintf (html, "</pre>\n");
+    fclose (html);
+
+    
+    printf ("HTML dump generated: %s\n", html_filename);
 }
